@@ -1,0 +1,58 @@
+version: 2.1
+
+jobs:
+  release:
+    parameters:
+      executor:
+        type: string
+      resource_class:
+        type: string
+      make_jobs:
+        type: integer
+    executor: <<parameters.executor>>
+    resource_class: <<parameters.resource_class>>
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "0a:8c:ed:d7:5c:aa:13:9a:70:89:ab:0c:6c:93:4f:a2"
+      - checkout:
+          path: silkworm-go
+      - run:
+          command: ./silkworm-go/ci/release.sh "$CIRCLE_WORKING_DIRECTORY" <<parameters.make_jobs>> <<pipeline.git.tag>>
+
+executors:
+  linux:
+    machine:
+      image: ubuntu-2204:2023.04.2
+  macos:
+    macos:
+      xcode: "15.0.0"
+
+workflows:
+  version: 2
+  release:
+    jobs:
+      - release:
+          name: macos-arm64
+          executor: macos
+          resource_class: macos.m1.large.gen1
+          make_jobs: 3
+          filters:
+            tags: { only: /^release\/.+-base$/ }
+            branches: { ignore: /.*/ }
+      - release:
+          name: linux-x64
+          executor: linux
+          resource_class: 2xlarge
+          make_jobs: 16
+          filters:
+            tags: { only: /^release\/.+-base$/ }
+            branches: { ignore: /.*/ }
+      # - release:
+      #     name: linux-arm64
+      #     executor: linux
+      #     resource_class: arm.2xlarge
+      #     make_jobs: 16
+      #     filters:
+      #       tags: { only: /^release\/.+-base$/ }
+      #       branches: { ignore: /.*/ }
