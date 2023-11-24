@@ -6,7 +6,7 @@ set -o pipefail
 
 SRC_GIT_URL="https://github.com/erigontech/silkworm.git"
 TARGET="silkworm_capi"
-FINAL_LIB_COUNT=3
+FINAL_LIB_COUNT=2
 
 function release_version {
 	version="$1"
