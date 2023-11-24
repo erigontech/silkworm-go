@@ -4,7 +4,7 @@ set -e
 set -u
 set -o pipefail
 
-SRC_GIT_URL="https://github.com/erigontech/silkworm.git"
+SRC_GIT_URL="https://github.com/battlmonstr/silkworm.git"
 
 function release_version {
 	git ls-remote --tags "$SRC_GIT_URL" | grep 'capi-' | cut -d '-' -f 2 | while read version

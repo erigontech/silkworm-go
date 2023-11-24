@@ -4,7 +4,7 @@ set -e
 set -u
 set -o pipefail
 
-SRC_GIT_URL="https://github.com/erigontech/silkworm.git"
+SRC_GIT_URL="https://github.com/battlmonstr/silkworm.git"
 TARGET="silkworm_capi"
 FINAL_LIB_COUNT=2
 
