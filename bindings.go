@@ -246,14 +246,23 @@ func (s *Silkworm) SentryStart(settings SentrySettings) error {
 }
 
 func (s *Silkworm) SentryStop() error {
-	status := C.silkworm_stop_rpcdaemon(s.handle)
+	status := C.silkworm_sentry_stop(s.handle)
 	if status == SILKWORM_OK {
 		return nil
 	}
 	return fmt.Errorf("silkworm_sentry_stop error %d", status)
 }
 
-func (s *Silkworm) ExecuteBlocks(txnCHandle unsafe.Pointer, chainID *big.Int, startBlock uint64, maxBlock uint64, batchSize uint64, writeChangeSets, writeReceipts, writeCallTraces bool) (lastExecutedBlock uint64, err error) {
+func (s *Silkworm) ExecuteBlocks(
+	txnCHandle unsafe.Pointer,
+	chainID *big.Int,
+	startBlock uint64,
+	maxBlock uint64,
+	batchSize uint64,
+	writeChangeSets,
+	writeReceipts,
+	writeCallTraces bool,
+) (lastExecutedBlock uint64, err error) {
 	if runtime.GOOS == "darwin" {
 		return 0, errors.New("silkworm execution is incompatible with Go runtime on macOS due to stack size mismatch (see https://github.com/golang/go/issues/28024)")
 	}
@@ -268,8 +277,19 @@ func (s *Silkworm) ExecuteBlocks(txnCHandle unsafe.Pointer, chainID *big.Int, st
 	cWriteCallTraces := C._Bool(writeCallTraces)
 	cLastExecutedBlock := C.uint64_t(startBlock - 1)
 	cMdbxErrorCode := C.int(0)
-	status := C.silkworm_execute_blocks(s.handle, cTxn, cChainId, cStartBlock,
-		cMaxBlock, cBatchSize, cWriteChangeSets, cWriteReceipts, cWriteCallTraces, &cLastExecutedBlock, &cMdbxErrorCode)
+	status := C.silkworm_execute_blocks(
+		s.handle,
+		cTxn,
+		cChainId,
+		cStartBlock,
+		cMaxBlock,
+		cBatchSize,
+		cWriteChangeSets,
+		cWriteReceipts,
+		cWriteCallTraces,
+		&cLastExecutedBlock,
+		&cMdbxErrorCode,
+	)
 	lastExecutedBlock = uint64(cLastExecutedBlock)
 	// Handle successful execution
 	if status == SILKWORM_OK {
