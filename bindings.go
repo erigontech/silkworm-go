@@ -1,3 +1,5 @@
+//go:build unix
+
 package silkworm_go
 
 // #cgo CFLAGS: -I${SRCDIR}/include
