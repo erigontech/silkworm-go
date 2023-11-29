@@ -1,4 +1,4 @@
-//go:build unix
+//go:build !nosilkworm && unix
 
 package silkworm_go
 

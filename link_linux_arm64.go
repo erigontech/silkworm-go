@@ -1,4 +1,4 @@
-//go:build linux && arm64
+//go:build !nosilkworm && linux && arm64
 
 package silkworm_go
 
