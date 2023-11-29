@@ -1,4 +1,4 @@
-//go:build darwin && arm64
+//go:build !nosilkworm && darwin && arm64
 
 package silkworm_go
 
