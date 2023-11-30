@@ -1,4 +1,4 @@
-//go:build nosilkworm || windows
+//go:build nosilkworm || windows || (linux && arm64)
 
 package silkworm_go
 
