@@ -7,7 +7,7 @@ set -o pipefail
 SRC_GIT_URL="https://github.com/erigontech/silkworm.git"
 
 function release_version {
-	git ls-remote --tags "$SRC_GIT_URL" | grep 'capi-' | cut -d '-' -f 2 | while read version
+	git ls-remote --tags "$SRC_GIT_URL" | grep -v '{}$' | grep 'capi-' | cut -d '-' -f 2 | while read version
 	do
 		if git ls-remote --heads | grep "release/$version" > /dev/null
 		then
