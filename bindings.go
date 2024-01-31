@@ -27,7 +27,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"runtime"
 	"unsafe"
 )
 
@@ -265,10 +264,6 @@ func (s *Silkworm) ExecuteBlocks(
 	writeReceipts,
 	writeCallTraces bool,
 ) (lastExecutedBlock uint64, err error) {
-	if runtime.GOOS == "darwin" {
-		return 0, errors.New("silkworm execution is incompatible with Go runtime on macOS due to stack size mismatch (see https://github.com/golang/go/issues/28024)")
-	}
-
 	cTxn := (*C.MDBX_txn)(txnCHandle)
 	cChainId := C.uint64_t(chainID.Uint64())
 	cStartBlock := C.uint64_t(startBlock)
