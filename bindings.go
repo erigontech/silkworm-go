@@ -48,6 +48,7 @@ const (
 	SILKWORM_INVALID_SETTINGS        = C.SILKWORM_INVALID_SETTINGS
 	SILKWORM_TERMINATION_SIGNAL      = C.SILKWORM_TERMINATION_SIGNAL
 	SILKWORM_SERVICE_ALREADY_STARTED = C.SILKWORM_SERVICE_ALREADY_STARTED
+	SILKWORM_INCOMPATIBLE_LIBMDBX    = C.SILKWORM_INCOMPATIBLE_LIBMDBX
 )
 
 // ErrInterrupted is the error returned by Silkworm APIs when stopped by any termination signal.
@@ -58,7 +59,7 @@ type Silkworm struct {
 	handle C.SilkwormHandle
 }
 
-func New(dataDirPath string) (*Silkworm, error) {
+func New(dataDirPath string, libMdbxVersion string) (*Silkworm, error) {
 	silkworm := &Silkworm{
 		handle: nil,
 	}
@@ -67,6 +68,10 @@ func New(dataDirPath string) (*Silkworm, error) {
 
 	if !C.go_string_copy(dataDirPath, &settings.data_dir_path[0], C.SILKWORM_PATH_SIZE) {
 		return nil, errors.New("silkworm.New failed to copy dataDirPath")
+	}
+
+	if !C.go_string_copy(libMdbxVersion, &settings.libmdbx_version[0], 32) {
+		return nil, errors.New("silkworm.New failed to copy libMdbxVersion")
 	}
 
 	status := C.silkworm_init(&silkworm.handle, settings) //nolint:gocritic
@@ -155,6 +160,10 @@ func (s *Silkworm) AddSnapshot(snapshot *MappedChainSnapshot) error {
 		return nil
 	}
 	return fmt.Errorf("silkworm_add_snapshot error %d", status)
+}
+
+func (s *Silkworm) LibMdbxVersion() string {
+	return C.GoString(C.silkworm_libmdbx_version())
 }
 
 func (s *Silkworm) StartRpcDaemon(dbEnvCHandle unsafe.Pointer) error {
