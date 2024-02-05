@@ -15,7 +15,7 @@ var ErrInvalidBlock = errors.New("invalid block")
 type Silkworm struct {
 }
 
-func New(dataDirPath string) (*Silkworm, error) {
+func New(dataDirPath string, libMdbxVersion string) (*Silkworm, error) {
 	return nil, errors.New("silkworm is not supported")
 }
 
