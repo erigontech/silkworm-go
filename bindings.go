@@ -3,11 +3,9 @@
 package silkworm_go
 
 // #cgo CFLAGS: -I${SRCDIR}/include
-// #include "silkworm.h"
-import "C"
-
 /*
 
+#include "silkworm.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,7 +35,7 @@ const (
 	SILKWORM_INVALID_HANDLE          = C.SILKWORM_INVALID_HANDLE
 	SILKWORM_INVALID_PATH            = C.SILKWORM_INVALID_PATH
 	SILKWORM_INVALID_SNAPSHOT        = C.SILKWORM_INVALID_SNAPSHOT
-	SILKWORM_INVALID_MDBX_TXN        = C.SILKWORM_INVALID_MDBX_TXN
+	SILKWORM_INVALID_MDBX_ENV        = C.SILKWORM_INVALID_MDBX_ENV
 	SILKWORM_INVALID_BLOCK_RANGE     = C.SILKWORM_INVALID_BLOCK_RANGE
 	SILKWORM_BLOCK_NOT_FOUND         = C.SILKWORM_BLOCK_NOT_FOUND
 	SILKWORM_UNKNOWN_CHAIN_ID        = C.SILKWORM_UNKNOWN_CHAIN_ID
@@ -264,6 +262,7 @@ func (s *Silkworm) SentryStop() error {
 }
 
 func (s *Silkworm) ExecuteBlocks(
+	dbEnvCHandle unsafe.Pointer,
 	txnCHandle unsafe.Pointer,
 	chainID *big.Int,
 	startBlock uint64,
@@ -273,6 +272,7 @@ func (s *Silkworm) ExecuteBlocks(
 	writeReceipts,
 	writeCallTraces bool,
 ) (lastExecutedBlock uint64, err error) {
+	cEnv := (*C.MDBX_env)(dbEnvCHandle)
 	cTxn := (*C.MDBX_txn)(txnCHandle)
 	cChainId := C.uint64_t(chainID.Uint64())
 	cStartBlock := C.uint64_t(startBlock)
@@ -285,6 +285,7 @@ func (s *Silkworm) ExecuteBlocks(
 	cMdbxErrorCode := C.int(0)
 	status := C.silkworm_execute_blocks(
 		s.handle,
+		cEnv,
 		cTxn,
 		cChainId,
 		cStartBlock,
