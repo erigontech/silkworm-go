@@ -57,6 +57,7 @@ func (s *Silkworm) SentryStop() error {
 }
 
 func (s *Silkworm) ExecuteBlocks(
+	dbEnvCHandle unsafe.Pointer,
 	txnCHandle unsafe.Pointer,
 	chainID *big.Int,
 	startBlock uint64,
