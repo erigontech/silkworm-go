@@ -56,9 +56,21 @@ func (s *Silkworm) SentryStop() error {
 	return nil
 }
 
-func (s *Silkworm) ExecuteBlocks(
-	dbEnvCHandle unsafe.Pointer,
+func (s *Silkworm) ExecuteBlocksEphemeral(
 	txnCHandle unsafe.Pointer,
+	chainID *big.Int,
+	startBlock uint64,
+	maxBlock uint64,
+	batchSize uint64,
+	writeChangeSets,
+	writeReceipts,
+	writeCallTraces bool,
+) (lastExecutedBlock uint64, err error) {
+	return 0, nil
+}
+
+func (s *Silkworm) ExecuteBlocksPerpetual(
+	dbEnvCHandle unsafe.Pointer,
 	chainID *big.Int,
 	startBlock uint64,
 	maxBlock uint64,

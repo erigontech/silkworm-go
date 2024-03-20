@@ -47,6 +47,7 @@ const (
 	SILKWORM_TERMINATION_SIGNAL      = C.SILKWORM_TERMINATION_SIGNAL
 	SILKWORM_SERVICE_ALREADY_STARTED = C.SILKWORM_SERVICE_ALREADY_STARTED
 	SILKWORM_INCOMPATIBLE_LIBMDBX    = C.SILKWORM_INCOMPATIBLE_LIBMDBX
+	SILKWORM_INVALID_MDBX_TXN        = C.SILKWORM_INVALID_MDBX_TXN
 )
 
 // ErrInterrupted is the error returned by Silkworm APIs when stopped by any termination signal.
@@ -261,8 +262,7 @@ func (s *Silkworm) SentryStop() error {
 	return fmt.Errorf("silkworm_sentry_stop error %d", status)
 }
 
-func (s *Silkworm) ExecuteBlocks(
-	dbEnvCHandle unsafe.Pointer,
+func (s *Silkworm) ExecuteBlocksEphemeral(
 	txnCHandle unsafe.Pointer,
 	chainID *big.Int,
 	startBlock uint64,
@@ -272,7 +272,6 @@ func (s *Silkworm) ExecuteBlocks(
 	writeReceipts,
 	writeCallTraces bool,
 ) (lastExecutedBlock uint64, err error) {
-	cEnv := (*C.MDBX_env)(dbEnvCHandle)
 	cTxn := (*C.MDBX_txn)(txnCHandle)
 	cChainId := C.uint64_t(chainID.Uint64())
 	cStartBlock := C.uint64_t(startBlock)
@@ -283,9 +282,8 @@ func (s *Silkworm) ExecuteBlocks(
 	cWriteCallTraces := C._Bool(writeCallTraces)
 	cLastExecutedBlock := C.uint64_t(startBlock - 1)
 	cMdbxErrorCode := C.int(0)
-	status := C.silkworm_execute_blocks(
+	status := C.silkworm_execute_blocks_ephemeral(
 		s.handle,
-		cEnv,
 		cTxn,
 		cChainId,
 		cStartBlock,
@@ -309,5 +307,53 @@ func (s *Silkworm) ExecuteBlocks(
 	if status == SILKWORM_TERMINATION_SIGNAL {
 		return lastExecutedBlock, ErrInterrupted
 	}
-	return lastExecutedBlock, fmt.Errorf("silkworm_execute_blocks error %d, MDBX error %d", status, cMdbxErrorCode)
+	return lastExecutedBlock, fmt.Errorf("silkworm_execute_blocks_ephemeral error %d, MDBX error %d", status, cMdbxErrorCode)
+}
+
+func (s *Silkworm) ExecuteBlocksPerpetual(
+	dbEnvCHandle unsafe.Pointer,
+	chainID *big.Int,
+	startBlock uint64,
+	maxBlock uint64,
+	batchSize uint64,
+	writeChangeSets,
+	writeReceipts,
+	writeCallTraces bool,
+) (lastExecutedBlock uint64, err error) {
+	cEnv := (*C.MDBX_env)(dbEnvCHandle)
+	cChainId := C.uint64_t(chainID.Uint64())
+	cStartBlock := C.uint64_t(startBlock)
+	cMaxBlock := C.uint64_t(maxBlock)
+	cBatchSize := C.uint64_t(batchSize)
+	cWriteChangeSets := C._Bool(writeChangeSets)
+	cWriteReceipts := C._Bool(writeReceipts)
+	cWriteCallTraces := C._Bool(writeCallTraces)
+	cLastExecutedBlock := C.uint64_t(startBlock - 1)
+	cMdbxErrorCode := C.int(0)
+	status := C.silkworm_execute_blocks_perpetual(
+		s.handle,
+		cEnv,
+		cChainId,
+		cStartBlock,
+		cMaxBlock,
+		cBatchSize,
+		cWriteChangeSets,
+		cWriteReceipts,
+		cWriteCallTraces,
+		&cLastExecutedBlock,
+		&cMdbxErrorCode,
+	)
+	lastExecutedBlock = uint64(cLastExecutedBlock)
+	// Handle successful execution
+	if status == SILKWORM_OK {
+		return lastExecutedBlock, nil
+	}
+	// Handle special errors
+	if status == SILKWORM_INVALID_BLOCK {
+		return lastExecutedBlock, ErrInvalidBlock
+	}
+	if status == SILKWORM_TERMINATION_SIGNAL {
+		return lastExecutedBlock, ErrInterrupted
+	}
+	return lastExecutedBlock, fmt.Errorf("silkworm_execute_blocks_perpetual error %d, MDBX error %d", status, cMdbxErrorCode)
 }
