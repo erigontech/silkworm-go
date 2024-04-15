@@ -58,12 +58,15 @@ type Silkworm struct {
 	handle C.SilkwormHandle
 }
 
-func New(dataDirPath string, libMdbxVersion string) (*Silkworm, error) {
+func New(dataDirPath string, libMdbxVersion string, numIOContexts uint32, logVerbosity uint8) (*Silkworm, error) {
 	silkworm := &Silkworm{
 		handle: nil,
 	}
 
-	settings := &C.struct_SilkwormSettings{}
+	settings := &C.struct_SilkwormSettings{
+		log_verbosity: logVerbosity,
+		num_contexts: C.uint32_t(numIOContexts),
+	}
 
 	if !C.go_string_copy(dataDirPath, &settings.data_dir_path[0], C.SILKWORM_PATH_SIZE) {
 		return nil, errors.New("silkworm.New failed to copy dataDirPath")
@@ -165,9 +168,64 @@ func (s *Silkworm) LibMdbxVersion() string {
 	return C.GoString(C.silkworm_libmdbx_version())
 }
 
-func (s *Silkworm) StartRpcDaemon(dbEnvCHandle unsafe.Pointer) error {
+type RpcInterfaceLogSettings struct {
+	Enabled         bool
+	ContainerFolder string
+	MaxFileSizeMB   uint16
+	MaxFiles        uint16
+	DumpResponse    bool
+}
+
+func makeCRpcInterfaceLogSettings(settings RpcInterfaceLogSettings) (*C.struct_SilkwormRpcInterfaceLogSettings, error) {
+	cSettings := &C.struct_SilkwormRpcInterfaceLogSettings{
+		enabled:          C.bool(settings.Enabled),
+		max_file_size_mb: C.uint16_t(settings.MaxFileSizeMB),
+		max_files:        C.uint16_t(settings.MaxFiles),
+		dump_response:    C.bool(settings.DumpResponse),
+	}
+	if !C.go_string_copy(settings.ContainerFolder, &cSettings.container_folder[0], C.SILKWORM_PATH_SIZE) {
+		return nil, errors.New("makeCRpcInterfaceLogSettings failed to copy ContainerFolder")
+	}
+	return cSettings, nil
+}
+
+type RpcDaemonSettings struct {
+	EthLogSettings           RpcInterfaceLogSettings
+	EthAPIHost               string
+	EthAPIPort               int
+	EthAPISpec               []string
+	NumWorkers               uint32
+	CORSDomains              []string
+	JWTFilePath              string
+	ErigonJSONCompatibility  bool
+	WebSocketEnabled         bool
+	WebSocketCompression     bool
+	HTTPCompression          bool
+}
+
+func makeCRpcDaemonSettings(settings RpcDaemonSettings) (*C.struct_SilkwormRpcSettings, error) {
+	eth_log_settings, err := makeCRpcInterfaceLogSettings(settings.EthLogSettings)
+	if err != nil {
+		return nil, err
+	}
+	cSettings := &C.struct_SilkwormRpcSettings{
+		eth_if_log_settings: eth_log_settings,
+		eth_api_port: C.uint16_t(settings.EthAPIPort),
+		// TODO(canepa) fill
+	}
+	if !C.go_string_copy(settings.EthAPIHost, &cSettings.eth_api_host[0], C.SILKWORM_RPC_SETTINGS_HOST_SIZE) {
+		return nil, errors.New("makeCSentrySettings failed to copy ClientId")
+	}
+	return cSettings, nil
+}
+
+func (s *Silkworm) StartRpcDaemon(dbEnvCHandle unsafe.Pointer, settings RpcDaemonSettings) error {
 	cEnv := (*C.MDBX_env)(dbEnvCHandle)
-	status := C.silkworm_start_rpcdaemon(s.handle, cEnv)
+	cSettings, err := makeCRpcDaemonSettings(settings)
+	if err != nil {
+		return err
+	}
+	status := C.silkworm_start_rpcdaemon(s.handle, cEnv, cSettings)
 	// Handle successful execution
 	if status == SILKWORM_OK {
 		return nil
