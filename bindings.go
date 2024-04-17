@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"unsafe"
 )
 
@@ -54,18 +55,30 @@ const (
 var ErrInterrupted = errors.New("interrupted")
 var ErrInvalidBlock = errors.New("invalid block")
 
+type SilkwormLogLevel uint8
+
+const (
+	LogLevelNone SilkwormLogLevel = iota
+	LogLevelCritical
+	LogLevelError
+	LogLevelWarning
+	LogLevelInfo
+	LogLevelDebug
+	LogLevelTrace
+)
+
 type Silkworm struct {
 	handle C.SilkwormHandle
 }
 
-func New(dataDirPath string, libMdbxVersion string, numIOContexts uint32, logVerbosity uint8) (*Silkworm, error) {
+func New(dataDirPath string, libMdbxVersion string, numIOContexts uint32, logVerbosity SilkwormLogLevel) (*Silkworm, error) {
 	silkworm := &Silkworm{
 		handle: nil,
 	}
 
 	settings := &C.struct_SilkwormSettings{
-		log_verbosity: logVerbosity,
-		num_contexts: C.uint32_t(numIOContexts),
+		log_verbosity: C.SilkwormLogLevel(logVerbosity),
+		num_contexts:  C.uint32_t(numIOContexts),
 	}
 
 	if !C.go_string_copy(dataDirPath, &settings.data_dir_path[0], C.SILKWORM_PATH_SIZE) {
@@ -79,6 +92,10 @@ func New(dataDirPath string, libMdbxVersion string, numIOContexts uint32, logVer
 	status := C.silkworm_init(&silkworm.handle, settings) //nolint:gocritic
 	if status == SILKWORM_OK {
 		return silkworm, nil
+	}
+	if status == SILKWORM_INCOMPATIBLE_LIBMDBX {
+		silkwormMdbxVersion := C.GoString(C.silkworm_libmdbx_version())
+		return nil, fmt.Errorf("silkworm_init error incompatible MDBX: E=%s S=%s", libMdbxVersion, silkwormMdbxVersion)
 	}
 	return nil, fmt.Errorf("silkworm_init error %d", status)
 }
@@ -190,17 +207,38 @@ func makeCRpcInterfaceLogSettings(settings RpcInterfaceLogSettings) (*C.struct_S
 }
 
 type RpcDaemonSettings struct {
-	EthLogSettings           RpcInterfaceLogSettings
-	EthAPIHost               string
-	EthAPIPort               int
-	EthAPISpec               []string
-	NumWorkers               uint32
-	CORSDomains              []string
-	JWTFilePath              string
-	ErigonJSONCompatibility  bool
-	WebSocketEnabled         bool
-	WebSocketCompression     bool
-	HTTPCompression          bool
+	EthLogSettings       RpcInterfaceLogSettings
+	EthAPIHost           string
+	EthAPIPort           int
+	EthAPISpec           []string
+	NumWorkers           uint32
+	CORSDomains          []string
+	JWTFilePath          string
+	JSONRPCCompatibility bool
+	WebSocketEnabled     bool
+	WebSocketCompression bool
+	HTTPCompression      bool
+}
+
+func joinStrings(values []string) string {
+	return strings.Join(values[:], ",")
+}
+
+func copyCORSDomains(list []string, cList *[C.SILKWORM_RPC_SETTINGS_CORS_DOMAINS_MAX][C.SILKWORM_RPC_SETTINGS_CORS_DOMAIN_SIZE]C.char) error {
+	listLen := len(list)
+	if listLen > C.SILKWORM_RPC_SETTINGS_CORS_DOMAINS_MAX {
+		return errors.New("copyCORSDomains: CORS domain list has too many items")
+	}
+	// Mark the list end with an empty string
+	if listLen < C.SILKWORM_RPC_SETTINGS_CORS_DOMAINS_MAX {
+		cList[listLen][0] = 0
+	}
+	for i, domain := range list {
+		if !C.go_string_copy(domain, &cList[i][0], C.SILKWORM_RPC_SETTINGS_CORS_DOMAIN_SIZE) {
+			return fmt.Errorf("copyCORSDomains: failed to copy CORS domain %d", i)
+		}
+	}
+	return nil
 }
 
 func makeCRpcDaemonSettings(settings RpcDaemonSettings) (*C.struct_SilkwormRpcSettings, error) {
@@ -209,12 +247,25 @@ func makeCRpcDaemonSettings(settings RpcDaemonSettings) (*C.struct_SilkwormRpcSe
 		return nil, err
 	}
 	cSettings := &C.struct_SilkwormRpcSettings{
-		eth_if_log_settings: eth_log_settings,
-		eth_api_port: C.uint16_t(settings.EthAPIPort),
-		// TODO(canepa) fill
+		eth_if_log_settings:           *eth_log_settings,
+		eth_api_port:                  C.uint16_t(settings.EthAPIPort),
+		num_workers:                   C.uint32_t(settings.NumWorkers),
+		erigon_json_rpc_compatibility: C.bool(settings.JSONRPCCompatibility),
+		ws_enabled:                    C.bool(settings.WebSocketEnabled),
+		ws_compression:                C.bool(settings.WebSocketCompression),
+		http_compression:              C.bool(settings.HTTPCompression),
 	}
 	if !C.go_string_copy(settings.EthAPIHost, &cSettings.eth_api_host[0], C.SILKWORM_RPC_SETTINGS_HOST_SIZE) {
-		return nil, errors.New("makeCSentrySettings failed to copy ClientId")
+		return nil, errors.New("makeCRpcDaemonSettings failed to copy EthAPIHost")
+	}
+	if !C.go_string_copy(joinStrings(settings.EthAPISpec), &cSettings.eth_api_spec[0], C.SILKWORM_RPC_SETTINGS_API_NAMESPACE_SPEC_SIZE) {
+		return nil, errors.New("makeCRpcDaemonSettings failed to copy EthAPISpec")
+	}
+	if err := copyCORSDomains(settings.CORSDomains, &cSettings.cors_domains); err != nil {
+		return nil, fmt.Errorf("makeCRpcDaemonSettings failed to copy CORSDomains: %w", err)
+	}
+	if !C.go_string_copy(settings.JWTFilePath, &cSettings.jwt_file_path[0], C.SILKWORM_PATH_SIZE) {
+		return nil, errors.New("makeCRpcDaemonSettings failed to copy JWTFilePath")
 	}
 	return cSettings, nil
 }
