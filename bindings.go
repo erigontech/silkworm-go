@@ -254,6 +254,7 @@ func makeCRpcDaemonSettings(settings RpcDaemonSettings) (*C.struct_SilkwormRpcSe
 		ws_enabled:                    C.bool(settings.WebSocketEnabled),
 		ws_compression:                C.bool(settings.WebSocketCompression),
 		http_compression:              C.bool(settings.HTTPCompression),
+		skip_internal_protocol_check:  C.bool(false), // We do check internal protocol versions at startup for sanity
 	}
 	if !C.go_string_copy(settings.EthAPIHost, &cSettings.eth_api_host[0], C.SILKWORM_RPC_SETTINGS_HOST_SIZE) {
 		return nil, errors.New("makeCRpcDaemonSettings failed to copy EthAPIHost")
