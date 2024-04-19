@@ -5,7 +5,7 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	silkworm, err := New(t.TempDir(), "")
+	silkworm, err := New(t.TempDir(), "", 10, 0)
 	if err != nil {
 		t.Error(err)
 	}

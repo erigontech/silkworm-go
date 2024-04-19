@@ -12,10 +12,12 @@ import (
 var ErrInterrupted = errors.New("interrupted")
 var ErrInvalidBlock = errors.New("invalid block")
 
+type SilkwormLogLevel uint8
+
 type Silkworm struct {
 }
 
-func New(dataDirPath string, libMdbxVersion string) (*Silkworm, error) {
+func New(dataDirPath string, libMdbxVersion string, numIOContexts uint32, logVerbosity SilkwormLogLevel) (*Silkworm, error) {
 	return nil, errors.New("silkworm is not supported")
 }
 
