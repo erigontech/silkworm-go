@@ -55,7 +55,7 @@ const (
 var ErrInterrupted = errors.New("interrupted")
 var ErrInvalidBlock = errors.New("invalid block")
 
-type SilkwormLogLevel uint8
+type SilkwormLogLevel uint32
 
 const (
 	LogLevelNone SilkwormLogLevel = iota
