@@ -12,7 +12,39 @@ import (
 var ErrInterrupted = errors.New("interrupted")
 var ErrInvalidBlock = errors.New("invalid block")
 
-type SilkwormLogLevel uint8
+type SilkwormLogLevel uint32
+
+const (
+	LogLevelNone SilkwormLogLevel = iota
+	LogLevelCritical
+	LogLevelError
+	LogLevelWarning
+	LogLevelInfo
+	LogLevelDebug
+	LogLevelTrace
+)
+
+type RpcInterfaceLogSettings struct {
+	Enabled         bool
+	ContainerFolder string
+	MaxFileSizeMB   uint16
+	MaxFiles        uint16
+	DumpResponse    bool
+}
+
+type RpcDaemonSettings struct {
+	EthLogSettings       RpcInterfaceLogSettings
+	EthAPIHost           string
+	EthAPIPort           int
+	EthAPISpec           []string
+	NumWorkers           uint32
+	CORSDomains          []string
+	JWTFilePath          string
+	JSONRPCCompatibility bool
+	WebSocketEnabled     bool
+	WebSocketCompression bool
+	HTTPCompression      bool
+}
 
 type Silkworm struct {
 }
@@ -29,7 +61,7 @@ func (s *Silkworm) AddSnapshot(snapshot *MappedChainSnapshot) error {
 	return nil
 }
 
-func (s *Silkworm) StartRpcDaemon(dbEnvCHandle unsafe.Pointer) error {
+func (s *Silkworm) StartRpcDaemon(dbEnvCHandle unsafe.Pointer, settings RpcDaemonSettings) error {
 	return nil
 }
 
