@@ -87,7 +87,7 @@ function install_cmake {
 function build_setup {
 	echo "build_setup..."
 
-	pip3 install --user --disable-pip-version-check conan==1.62.0 chardet
+	pip3 install --user --disable-pip-version-check conan==1.64.1 chardet
 	conan_path="$(python3 -m site --user-base)/bin"
 	export "PATH=$conan_path:$PATH"
 	conan --version
