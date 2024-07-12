@@ -32,14 +32,14 @@ workflows:
   version: 2
   release:
     jobs:
-      - release:
-          name: macos-x64
-          executor: macos
-          resource_class: macos.x86.medium.gen2
-          make_jobs: 2
-          filters:
-            tags: { only: /^release\/.+-base$/ }
-            branches: { ignore: /.*/ }
+      # - release:
+      #     name: macos-x64
+      #     executor: macos
+      #     resource_class: macos.x86.medium.gen2
+      #     make_jobs: 2
+      #     filters:
+      #       tags: { only: /^release\/.+-base$/ }
+      #       branches: { ignore: /.*/ }
       - release:
           name: macos-arm64
           executor: macos
