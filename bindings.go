@@ -294,6 +294,53 @@ func (s *Silkworm) StopRpcDaemon() error {
 	return fmt.Errorf("silkworm_stop_rpcdaemon error %d", status)
 }
 
+func (s *Silkworm) makeDefaultNodeSettings() *C.struct_SilkwormNodeSettings {
+	return &C.struct_SilkwormNodeSettings{
+		network_id:                     C.uint64_t(1),
+		batch_size:                     512 * 1024 * 1024,
+		etl_buffer_size:                256 * 1024 * 1024,
+		sync_loop_throttle_seconds:     0,
+		sync_loop_log_interval_seconds: 30,
+	}
+}
+
+func (s *Silkworm) StartForkValidator(dbEnvCHandle unsafe.Pointer) error {
+	cEnv := (*C.MDBX_env)(dbEnvCHandle)
+	cSettings := s.makeDefaultNodeSettings()
+
+	status := C.silkworm_start_fork_validator(s.handle, cEnv, cSettings)
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_start_fork_validator error %d", status)
+}
+
+func (s *Silkworm) StopForkValidator() error {
+	status := C.silkworm_stop_fork_validator(s.handle)
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_stop_fork_validator error %d", status)
+}
+
+type Hash [32]byte
+
+func (s *Silkworm) VerifyChain(headHash Hash) error {
+	cHeadHash := C.CBytes(headHash[:])
+	defer C.free(cHeadHash)
+	status := C.silkworm_fork_validator_verify_chain(s.handle, *(*C.struct_bytes_32)(cHeadHash))
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_verify_chain error %d", status)
+}
+
 type SentrySettings struct {
 	ClientId    string
 	ApiPort     int
