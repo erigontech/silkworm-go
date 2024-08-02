@@ -220,6 +220,13 @@ type RpcDaemonSettings struct {
 	HTTPCompression      bool
 }
 
+type ForkValidatorSettings struct {
+	BatchSize               uint64
+	EtlBufferSize           uint64
+	SyncLoopThrottleSeconds uint32
+	StopBeforeSendersStage  bool
+}
+
 func joinStrings(values []string) string {
 	return strings.Join(values[:], ",")
 }
@@ -292,6 +299,92 @@ func (s *Silkworm) StopRpcDaemon() error {
 		return nil
 	}
 	return fmt.Errorf("silkworm_stop_rpcdaemon error %d", status)
+}
+
+func (s *Silkworm) makeForkValidatorSettings(settings ForkValidatorSettings) *C.struct_SilkwormForkValidatorSettings {
+	return &C.struct_SilkwormForkValidatorSettings{
+		batch_size:                 C.uint64_t(settings.BatchSize),
+		etl_buffer_size:            C.uint64_t(settings.EtlBufferSize),
+		sync_loop_throttle_seconds: C.uint32_t(settings.SyncLoopThrottleSeconds),
+		stop_before_senders_stage:  C.bool(settings.StopBeforeSendersStage),
+	}
+}
+
+func (s *Silkworm) StartForkValidator(dbEnvCHandle unsafe.Pointer, settings ForkValidatorSettings) error {
+	cEnv := (*C.MDBX_env)(dbEnvCHandle)
+	cSettings := s.makeForkValidatorSettings(settings)
+
+	status := C.silkworm_start_fork_validator(s.handle, cEnv, cSettings)
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_start_fork_validator error %d", status)
+}
+
+func (s *Silkworm) StopForkValidator() error {
+	status := C.silkworm_stop_fork_validator(s.handle)
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_stop_fork_validator error %d", status)
+}
+
+type Hash [32]byte
+
+type ExecutionStatus int32
+
+const (
+	ExecutionStatus_Success  ExecutionStatus = 0
+	ExecutionStatus_BadBlock ExecutionStatus = 1
+	ExecutionStatus_Invalid  ExecutionStatus = 4
+)
+
+type ForkValidatorValidationResult struct {
+	ExecutionStatus ExecutionStatus
+	LastValidHash   Hash
+	ErrorMessage    string
+}
+
+func (s *Silkworm) VerifyChain(headHash Hash) (ForkValidatorValidationResult, error) {
+	cHeadHash := C.CBytes(headHash[:])
+	defer C.free(cHeadHash)
+
+	cResult := C.struct_SilkwormForkValidatorValidationResult{}
+
+	status := C.silkworm_fork_validator_verify_chain(s.handle, *(*C.struct_bytes_32)(cHeadHash), &cResult)
+
+	if status == SILKWORM_OK {
+		return ForkValidatorValidationResult{
+			ExecutionStatus: ExecutionStatus(cResult.execution_status),
+			LastValidHash:   *(*Hash)(unsafe.Pointer(&cResult.last_valid_hash)),
+			ErrorMessage:    C.GoString((*C.char)(unsafe.Pointer(&cResult.error_message[0]))),
+		}, nil
+	}
+
+	return ForkValidatorValidationResult{}, fmt.Errorf("silkworm_verify_chain error %d", status)
+}
+
+func (s *Silkworm) ForkChoiceUpdate(headHash Hash, finalizedHash Hash, safeHash Hash) error {
+	cHeadHash := C.CBytes(headHash[:])
+	defer C.free(cHeadHash)
+
+	cFinalizedHash := C.CBytes(finalizedHash[:])
+	defer C.free(cFinalizedHash)
+
+	cSafeHash := C.CBytes(safeHash[:])
+	defer C.free(cSafeHash)
+
+	status := C.silkworm_fork_validator_fork_choice_update(s.handle, *(*C.struct_bytes_32)(cHeadHash), *(*C.struct_bytes_32)(cFinalizedHash), *(*C.struct_bytes_32)(cSafeHash))
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_fork_choice_update error %d", status)
 }
 
 type SentrySettings struct {
