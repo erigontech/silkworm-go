@@ -335,16 +335,37 @@ func (s *Silkworm) StopForkValidator() error {
 
 type Hash [32]byte
 
-func (s *Silkworm) VerifyChain(headHash Hash) error {
+type ExecutionStatus int32
+
+const (
+	ExecutionStatus_Success  ExecutionStatus = 0
+	ExecutionStatus_BadBlock ExecutionStatus = 1
+	ExecutionStatus_Invalid  ExecutionStatus = 4
+)
+
+type ForkValidatorValidationResult struct {
+	ExecutionStatus ExecutionStatus
+	LastValidHash   Hash
+	ErrorMessage    string
+}
+
+func (s *Silkworm) VerifyChain(headHash Hash) (ForkValidatorValidationResult, error) {
 	cHeadHash := C.CBytes(headHash[:])
 	defer C.free(cHeadHash)
-	status := C.silkworm_fork_validator_verify_chain(s.handle, *(*C.struct_bytes_32)(cHeadHash))
+
+	cResult := C.struct_SilkwormForkValidatorValidationResult{}
+
+	status := C.silkworm_fork_validator_verify_chain(s.handle, *(*C.struct_bytes_32)(cHeadHash), &cResult)
 
 	if status == SILKWORM_OK {
-		return nil
+		return ForkValidatorValidationResult{
+			ExecutionStatus: ExecutionStatus(cResult.execution_status),
+			LastValidHash:   *(*Hash)(unsafe.Pointer(&cResult.last_valid_hash)),
+			ErrorMessage:    C.GoString((*C.char)(unsafe.Pointer(&cResult.error_message[0]))),
+		}, nil
 	}
 
-	return fmt.Errorf("silkworm_verify_chain error %d", status)
+	return ForkValidatorValidationResult{}, fmt.Errorf("silkworm_verify_chain error %d", status)
 }
 
 func (s *Silkworm) ForkChoiceUpdate(headHash Hash, finalizedHash Hash, safeHash Hash) error {
