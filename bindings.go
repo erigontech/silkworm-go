@@ -355,7 +355,7 @@ func (s *Silkworm) VerifyChain(headHash Hash) (ForkValidatorValidationResult, er
 
 	cResult := C.struct_SilkwormForkValidatorValidationResult{}
 
-	status := C.silkworm_fork_validator_verify_chain(s.handle, *(*C.struct_bytes_32)(cHeadHash), &cResult)
+	status := C.silkworm_fork_validator_verify_chain(s.handle, *(*C.struct_SilkwormBytes32)(cHeadHash), &cResult)
 
 	if status == SILKWORM_OK {
 		return ForkValidatorValidationResult{
@@ -378,7 +378,7 @@ func (s *Silkworm) ForkChoiceUpdate(headHash Hash, finalizedHash Hash, safeHash 
 	cSafeHash := C.CBytes(safeHash[:])
 	defer C.free(cSafeHash)
 
-	status := C.silkworm_fork_validator_fork_choice_update(s.handle, *(*C.struct_bytes_32)(cHeadHash), *(*C.struct_bytes_32)(cFinalizedHash), *(*C.struct_bytes_32)(cSafeHash))
+	status := C.silkworm_fork_validator_fork_choice_update(s.handle, *(*C.struct_SilkwormBytes32)(cHeadHash), *(*C.struct_SilkwormBytes32)(cFinalizedHash), *(*C.struct_SilkwormBytes32)(cSafeHash))
 
 	if status == SILKWORM_OK {
 		return nil
