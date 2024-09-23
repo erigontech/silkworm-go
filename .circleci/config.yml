@@ -32,14 +32,7 @@ workflows:
   version: 2
   release:
     jobs:
-      # - release:
-      #     name: macos-x64
-      #     executor: macos
-      #     resource_class: macos.x86.medium.gen2
-      #     make_jobs: 2
-      #     filters:
-      #       tags: { only: /^release\/.+-base$/ }
-      #       branches: { ignore: /.*/ }
+      # Note: the number of release jobs must match with FINAL_LIB_COUNT in ci/release.sh
       - release:
           name: macos-arm64
           executor: macos
@@ -56,11 +49,3 @@ workflows:
           filters:
             tags: { only: /^release\/.+-base$/ }
             branches: { ignore: /.*/ }
-      # - release:
-      #     name: linux-arm64
-      #     executor: linux
-      #     resource_class: arm.2xlarge
-      #     make_jobs: 16
-      #     filters:
-      #       tags: { only: /^release\/.+-base$/ }
-      #       branches: { ignore: /.*/ }
