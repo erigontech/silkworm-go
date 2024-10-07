@@ -46,11 +46,22 @@ type RpcDaemonSettings struct {
 	HTTPCompression      bool
 }
 
+type ForkValidatorSettings struct {
+	BatchSize               uint64
+	EtlBufferSize           uint64
+	SyncLoopThrottleSeconds uint32
+	StopBeforeSendersStage  bool
+}
+
 type Silkworm struct {
 }
 
 func New(dataDirPath string, libMdbxVersion string, numIOContexts uint32, logVerbosity SilkwormLogLevel) (*Silkworm, error) {
 	return nil, errors.New("silkworm is not supported")
+}
+
+func (s *Silkworm) LibMdbxVersion() string {
+	return ""
 }
 
 func (s *Silkworm) Close() error {
@@ -66,6 +77,32 @@ func (s *Silkworm) StartRpcDaemon(dbEnvCHandle unsafe.Pointer, settings RpcDaemo
 }
 
 func (s *Silkworm) StopRpcDaemon() error {
+	return nil
+}
+
+func (s *Silkworm) StartForkValidator(dbEnvCHandle unsafe.Pointer, settings ForkValidatorSettings) error {
+	return nil
+}
+
+func (s *Silkworm) StopForkValidator() error {
+	return nil
+}
+
+type Hash [32]byte
+
+type ExecutionStatus int32
+
+type ForkValidatorValidationResult struct {
+	ExecutionStatus ExecutionStatus
+	LastValidHash   Hash
+	ErrorMessage    string
+}
+
+func (s *Silkworm) VerifyChain(headHash Hash) (ForkValidatorValidationResult, error) {
+	return ForkValidatorValidationResult{}, nil
+}
+
+func (s *Silkworm) ForkChoiceUpdate(headHash Hash, finalizedHash Hash, safeHash Hash) error {
 	return nil
 }
 
