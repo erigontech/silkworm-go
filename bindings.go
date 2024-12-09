@@ -560,3 +560,21 @@ func (s *Silkworm) ExecuteBlocksPerpetual(
 	}
 	return lastExecutedBlock, fmt.Errorf("silkworm_execute_blocks_perpetual error %d, MDBX error %d", status, cMdbxErrorCode)
 }
+
+func (s *Silkworm) ExecuteTx(txnCHandle unsafe.Pointer, blockNum uint64, txIndex uint64) (gasUsed uint64, blobGasUsed uint64, err error) {
+	cTxn := (*C.MDBX_txn)(txnCHandle)
+	cBlockNum := C.uint64_t(blockNum)
+	cTxIndex := C.uint64_t(txIndex)
+	cGasUsed := C.uint64_t(0)
+	cBlobGasUsed := C.uint64_t(0)
+	status := C.silkworm_execute_tx(s.handle, cTxn, cBlockNum, cTxIndex, &cGasUsed, &cBlobGasUsed)
+	gasUsed = uint64(cGasUsed)
+	blobGasUsed = uint64(cBlobGasUsed)
+
+	// Handle successful execution
+	if status == SILKWORM_OK {
+		return gasUsed, blobGasUsed, nil
+	}
+
+	return gasUsed, blobGasUsed, fmt.Errorf("silkworm_execute_tx error %d", status)
+}
