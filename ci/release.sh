@@ -67,6 +67,13 @@ function checkout {
 	echo
 }
 
+function install_conan {
+	conan_version=$(grep 'conan==' "$project_dir/.circleci/config.yml" | cut -d '=' -f 3)
+	pip3 install --user --disable-pip-version-check conan==$conan_version chardet
+	conan_path="$(python3 -m site --user-base)/bin"
+	export "PATH=$conan_path:$PATH"	
+}
+
 function install_cmake {
 	cmake_version=3.27.8
 	case $(os_name) in
@@ -75,12 +82,16 @@ function install_cmake {
 			cd "$work_dir/cmake"
 			curl -L --output cmake.tgz "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-macos-universal.tar.gz"
 			tar xzf cmake.tgz
-			mv cmake-*/CMake.app .
-			export "PATH=$work_dir/cmake/CMake.app/Contents/bin:$PATH"
+			mv cmake-* cmake
+			export "PATH=$PWD/cmake/CMake.app/Contents/bin:$PATH"
 			;;
-		*)
-			echo "install_cmake not implemented"
-			exit 1
+		linux)
+			mkdir -p "$work_dir/cmake"
+			cd "$work_dir/cmake"
+			curl -L --output cmake.tgz "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-linux-x86_64.tar.gz"
+			tar xzf cmake.tgz
+			mv cmake-* cmake
+			export "PATH=$PWD/cmake/bin:$PATH"
 			;;
 	esac
 }
@@ -88,15 +99,10 @@ function install_cmake {
 function build_setup {
 	echo "build_setup..."
 
-	pip3 install --user --disable-pip-version-check conan==1.64.1 chardet
-	conan_path="$(python3 -m site --user-base)/bin"
-	export "PATH=$conan_path:$PATH"
+	install_conan
 	conan --version
 
-	if ! which cmake > /dev/null
-	then
-		install_cmake
-	fi
+	install_cmake
 	cmake --version
 
 	echo "build_setup done"
