@@ -153,12 +153,12 @@ func (s *Silkworm) ExecuteBlocksPerpetual(
 	return 0, nil
 }
 
-func (s *Silkworm) ExecuteTx(
-	txnCHandle unsafe.Pointer,
+func (s *Silkworm) ExecuteTxn(
+	txCHandle unsafe.Pointer,
 	blockNum uint64,
 	blockHeaderHash Hash,
-	txIndex uint64,
-	txId uint64,
+	txnIndex uint64,
+	txNum uint64,
 ) (gasUsed uint64, blobGasUsed uint64, err error) {
 	return 0, 0, nil
 }

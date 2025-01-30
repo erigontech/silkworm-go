@@ -561,16 +561,16 @@ func (s *Silkworm) ExecuteBlocksPerpetual(
 	return lastExecutedBlock, fmt.Errorf("silkworm_execute_blocks_perpetual error %d, MDBX error %d", status, cMdbxErrorCode)
 }
 
-func (s *Silkworm) ExecuteTx(txnCHandle unsafe.Pointer, blockNum uint64, blockHeaderHash Hash, txIndex uint64, txId uint64) (gasUsed uint64, blobGasUsed uint64, err error) {
-	cTxn := (*C.MDBX_txn)(txnCHandle)
+func (s *Silkworm) ExecuteTxn(txCHandle unsafe.Pointer, blockNum uint64, blockHeaderHash Hash, txnIndex uint64, txNum uint64) (gasUsed uint64, blobGasUsed uint64, err error) {
+	cTx := (*C.MDBX_txn)(txCHandle)
 	cBlockNum := C.uint64_t(blockNum)
 	cBlockHeaderHash := C.CBytes(blockHeaderHash[:])
 	defer C.free(cBlockHeaderHash)
-	cTxIndex := C.uint64_t(txIndex)
-	cTxId := C.uint64_t(txId)
+	cTxnIndex := C.uint64_t(txnIndex)
+	cTxnNum := C.uint64_t(txNum)
 	cGasUsed := C.uint64_t(0)
 	cBlobGasUsed := C.uint64_t(0)
-	status := C.silkworm_execute_tx(s.handle, cTxn, cBlockNum, *(*C.struct_SilkwormBytes32)(cBlockHeaderHash), cTxIndex, cTxId, &cGasUsed, &cBlobGasUsed)
+	status := C.silkworm_execute_txn(s.handle, cTx, cBlockNum, *(*C.struct_SilkwormBytes32)(cBlockHeaderHash), cTxnIndex, cTxnNum, &cGasUsed, &cBlobGasUsed)
 	gasUsed = uint64(cGasUsed)
 	blobGasUsed = uint64(cBlobGasUsed)
 
