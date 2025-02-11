@@ -2,64 +2,70 @@ package silkworm_go
 
 import "unsafe"
 
-type MemoryMappedRegion struct {
-	FilePath   string
+var NewFilePath = NewCString
+
+type MemoryMappedFile struct {
+	FilePath   *CString
 	DataHandle unsafe.Pointer
 	Size       int64
 }
 
-type MappedHeaderSnapshot struct {
-	Segment       *MemoryMappedRegion
-	IdxHeaderHash *MemoryMappedRegion
+type HeadersSnapshot struct {
+	Segment         MemoryMappedFile
+	HeaderHashIndex MemoryMappedFile
 }
 
-type MappedBodySnapshot struct {
-	Segment       *MemoryMappedRegion
-	IdxBodyNumber *MemoryMappedRegion
+type BodiesSnapshot struct {
+	Segment       MemoryMappedFile
+	BlockNumIndex MemoryMappedFile
 }
 
-type MappedTxnSnapshot struct {
-	Segment             *MemoryMappedRegion
-	IdxTxnHash          *MemoryMappedRegion
-	IdxTxnHash2BlockNum *MemoryMappedRegion
+type TransactionsSnapshot struct {
+	Segment            MemoryMappedFile
+	TxnHashIndex       MemoryMappedFile
+	TxnHash2BlockIndex MemoryMappedFile
 }
 
-type MappedChainSnapshot struct {
-	Headers *MappedHeaderSnapshot
-	Bodies  *MappedBodySnapshot
-	Txs     *MappedTxnSnapshot
+type BlocksSnapshotBundle struct {
+	Headers      HeadersSnapshot
+	Bodies       BodiesSnapshot
+	Transactions TransactionsSnapshot
 }
 
-func NewMemoryMappedRegion(filePath string, dataHandle unsafe.Pointer, size int64) *MemoryMappedRegion {
-	region := &MemoryMappedRegion{
-		FilePath:   filePath,
-		DataHandle: dataHandle,
-		Size:       size,
-	}
-	return region
+type InvertedIndexSnapshot struct {
+	Segment       MemoryMappedFile // .ef
+	AccessorIndex MemoryMappedFile // .efi
 }
 
-func NewMappedHeaderSnapshot(segment, idxHeaderHash *MemoryMappedRegion) *MappedHeaderSnapshot {
-	snapshot := &MappedHeaderSnapshot{
-		Segment:       segment,
-		IdxHeaderHash: idxHeaderHash,
-	}
-	return snapshot
+type HistorySnapshot struct {
+	Segment       MemoryMappedFile // .v
+	AccessorIndex MemoryMappedFile // .vi
+	InvertedIndex InvertedIndexSnapshot
 }
 
-func NewMappedBodySnapshot(segment, idxBodyNumber *MemoryMappedRegion) *MappedBodySnapshot {
-	snapshot := &MappedBodySnapshot{
-		Segment:       segment,
-		IdxBodyNumber: idxBodyNumber,
-	}
-	return snapshot
+type DomainSnapshot struct {
+	Segment        MemoryMappedFile  // .kv
+	ExistenceIndex MemoryMappedFile  // .kvei
+	BTreeIndex     MemoryMappedFile  // .bt
+	AccessorIndex  *MemoryMappedFile // .kvi
 }
 
-func NewMappedTxnSnapshot(segment, idxTxnHash, idxTxnHash2BlockNum *MemoryMappedRegion) *MappedTxnSnapshot {
-	snapshot := &MappedTxnSnapshot{
-		Segment:             segment,
-		IdxTxnHash:          idxTxnHash,
-		IdxTxnHash2BlockNum: idxTxnHash2BlockNum,
-	}
-	return snapshot
+type StateSnapshotBundleLatest struct {
+	Accounts   DomainSnapshot
+	Storage    DomainSnapshot
+	Code       DomainSnapshot
+	Commitment DomainSnapshot
+	Receipts   DomainSnapshot
+}
+
+type StateSnapshotBundleHistorical struct {
+	Accounts HistorySnapshot
+	Storage  HistorySnapshot
+	Code     HistorySnapshot
+	Receipts HistorySnapshot
+
+	LogAddresses InvertedIndexSnapshot
+	LogTopics    InvertedIndexSnapshot
+	TracesFrom   InvertedIndexSnapshot
+	TracesTo     InvertedIndexSnapshot
 }

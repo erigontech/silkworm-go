@@ -68,7 +68,15 @@ func (s *Silkworm) Close() error {
 	return nil
 }
 
-func (s *Silkworm) AddSnapshot(snapshot *MappedChainSnapshot) error {
+func (s *Silkworm) AddBlocksSnapshotBundle(bundle BlocksSnapshotBundle) error {
+	return nil
+}
+
+func (s *Silkworm) AddStateSnapshotBundleLatest(bundle StateSnapshotBundleLatest) error {
+	return nil
+}
+
+func (s *Silkworm) AddStateSnapshotBundleHistorical(bundle StateSnapshotBundleHistorical) error {
 	return nil
 }
 
