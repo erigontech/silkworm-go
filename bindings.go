@@ -109,76 +109,102 @@ func (s *Silkworm) Close() error {
 	return fmt.Errorf("silkworm_fini error %d", status)
 }
 
-func (s *Silkworm) AddSnapshot(snapshot *MappedChainSnapshot) error {
-	cHeadersSegmentFilePath := C.CString(snapshot.Headers.Segment.FilePath)
-	defer C.free(unsafe.Pointer(cHeadersSegmentFilePath))
-	cHeadersIdxHeaderHashFilePath := C.CString(snapshot.Headers.IdxHeaderHash.FilePath)
-	defer C.free(unsafe.Pointer(cHeadersIdxHeaderHashFilePath))
-	cHeadersSnapshot := C.struct_SilkwormHeadersSnapshot{
-		segment: C.struct_SilkwormMemoryMappedFile{
-			file_path:      cHeadersSegmentFilePath,
-			memory_address: (*C.uchar)(snapshot.Headers.Segment.DataHandle),
-			memory_length:  C.uint64_t(snapshot.Headers.Segment.Size),
+func memoryMappedFile(file MemoryMappedFile) C.struct_SilkwormMemoryMappedFile {
+	return C.struct_SilkwormMemoryMappedFile{
+		(*C.char)(file.FilePath.Data),
+		(*C.uchar)(file.DataHandle),
+		C.uint64_t(file.Size),
+	}
+}
+
+func (s *Silkworm) AddBlocksSnapshotBundle(bundle BlocksSnapshotBundle) error {
+	cBundle := C.struct_SilkwormBlocksSnapshotBundle{
+		C.struct_SilkwormHeadersSnapshot{
+			memoryMappedFile(bundle.Headers.Segment),
+			memoryMappedFile(bundle.Headers.HeaderHashIndex),
 		},
-		header_hash_index: C.struct_SilkwormMemoryMappedFile{
-			file_path:      cHeadersIdxHeaderHashFilePath,
-			memory_address: (*C.uchar)(snapshot.Headers.IdxHeaderHash.DataHandle),
-			memory_length:  C.uint64_t(snapshot.Headers.IdxHeaderHash.Size),
+		C.struct_SilkwormBodiesSnapshot{
+			memoryMappedFile(bundle.Bodies.Segment),
+			memoryMappedFile(bundle.Bodies.BlockNumIndex),
+		},
+		C.struct_SilkwormTransactionsSnapshot{
+			memoryMappedFile(bundle.Transactions.Segment),
+			memoryMappedFile(bundle.Transactions.TxnHashIndex),
+			memoryMappedFile(bundle.Transactions.TxnHash2BlockIndex),
 		},
 	}
 
-	cBodiesSegmentFilePath := C.CString(snapshot.Bodies.Segment.FilePath)
-	defer C.free(unsafe.Pointer(cBodiesSegmentFilePath))
-	cBodiesIdxBodyNumberFilePath := C.CString(snapshot.Bodies.IdxBodyNumber.FilePath)
-	defer C.free(unsafe.Pointer(cBodiesIdxBodyNumberFilePath))
-	cBodiesSnapshot := C.struct_SilkwormBodiesSnapshot{
-		segment: C.struct_SilkwormMemoryMappedFile{
-			file_path:      cBodiesSegmentFilePath,
-			memory_address: (*C.uchar)(snapshot.Bodies.Segment.DataHandle),
-			memory_length:  C.uint64_t(snapshot.Bodies.Segment.Size),
-		},
-		block_num_index: C.struct_SilkwormMemoryMappedFile{
-			file_path:      cBodiesIdxBodyNumberFilePath,
-			memory_address: (*C.uchar)(snapshot.Bodies.IdxBodyNumber.DataHandle),
-			memory_length:  C.uint64_t(snapshot.Bodies.IdxBodyNumber.Size),
-		},
-	}
-
-	cTxsSegmentFilePath := C.CString(snapshot.Txs.Segment.FilePath)
-	defer C.free(unsafe.Pointer(cTxsSegmentFilePath))
-	cTxsIdxTxnHashFilePath := C.CString(snapshot.Txs.IdxTxnHash.FilePath)
-	defer C.free(unsafe.Pointer(cTxsIdxTxnHashFilePath))
-	cTxsIdxTxnHash2BlockFilePath := C.CString(snapshot.Txs.IdxTxnHash2BlockNum.FilePath)
-	defer C.free(unsafe.Pointer(cTxsIdxTxnHash2BlockFilePath))
-	cTxsSnapshot := C.struct_SilkwormTransactionsSnapshot{
-		segment: C.struct_SilkwormMemoryMappedFile{
-			file_path:      cTxsSegmentFilePath,
-			memory_address: (*C.uchar)(snapshot.Txs.Segment.DataHandle),
-			memory_length:  C.uint64_t(snapshot.Txs.Segment.Size),
-		},
-		tx_hash_index: C.struct_SilkwormMemoryMappedFile{
-			file_path:      cTxsIdxTxnHashFilePath,
-			memory_address: (*C.uchar)(snapshot.Txs.IdxTxnHash.DataHandle),
-			memory_length:  C.uint64_t(snapshot.Txs.IdxTxnHash.Size),
-		},
-		tx_hash_2_block_index: C.struct_SilkwormMemoryMappedFile{
-			file_path:      cTxsIdxTxnHash2BlockFilePath,
-			memory_address: (*C.uchar)(snapshot.Txs.IdxTxnHash2BlockNum.DataHandle),
-			memory_length:  C.uint64_t(snapshot.Txs.IdxTxnHash2BlockNum.Size),
-		},
-	}
-
-	cChainSnapshot := C.struct_SilkwormChainSnapshot{
-		headers:      cHeadersSnapshot,
-		bodies:       cBodiesSnapshot,
-		transactions: cTxsSnapshot,
-	}
-
-	status := C.silkworm_add_snapshot(s.handle, &cChainSnapshot) //nolint:gocritic
+	status := C.silkworm_add_blocks_snapshot_bundle(s.handle, &cBundle) //nolint:gocritic
 	if status == SILKWORM_OK {
 		return nil
 	}
-	return fmt.Errorf("silkworm_add_snapshot error %d", status)
+	return fmt.Errorf("silkworm_add_blocks_snapshot_bundle error %d", status)
+}
+
+func makeDomainSnapshot(snapshot DomainSnapshot) C.struct_SilkwormDomainSnapshot {
+	hasAccessorIndex := snapshot.AccessorIndex != nil
+	cSnapshot := C.struct_SilkwormDomainSnapshot{
+		memoryMappedFile(snapshot.Segment),
+		memoryMappedFile(snapshot.ExistenceIndex),
+		memoryMappedFile(snapshot.BTreeIndex),
+		C.bool(hasAccessorIndex),
+		C.struct_SilkwormMemoryMappedFile{},
+	}
+	if hasAccessorIndex {
+		cSnapshot.accessor_index = memoryMappedFile(*snapshot.AccessorIndex)
+	}
+	return cSnapshot
+}
+
+func (s *Silkworm) AddStateSnapshotBundleLatest(bundle StateSnapshotBundleLatest) error {
+	cBundle := C.struct_SilkwormStateSnapshotBundleLatest{
+		makeDomainSnapshot(bundle.Accounts),
+		makeDomainSnapshot(bundle.Storage),
+		makeDomainSnapshot(bundle.Code),
+		makeDomainSnapshot(bundle.Commitment),
+		makeDomainSnapshot(bundle.Receipts),
+	}
+
+	status := C.silkworm_add_state_snapshot_bundle_latest(s.handle, &cBundle) //nolint:gocritic
+	if status == SILKWORM_OK {
+		return nil
+	}
+	return fmt.Errorf("silkworm_add_state_snapshot_bundle_latest error %d", status)
+}
+
+func makeInvertedIndexSnapshot(snapshot InvertedIndexSnapshot) C.struct_SilkwormInvertedIndexSnapshot {
+	return C.struct_SilkwormInvertedIndexSnapshot{
+		memoryMappedFile(snapshot.Segment),
+		memoryMappedFile(snapshot.AccessorIndex),
+	}
+}
+
+func makeHistorySnapshot(snapshot HistorySnapshot) C.struct_SilkwormHistorySnapshot {
+	return C.struct_SilkwormHistorySnapshot{
+		memoryMappedFile(snapshot.Segment),
+		memoryMappedFile(snapshot.AccessorIndex),
+		makeInvertedIndexSnapshot(snapshot.InvertedIndex),
+	}
+}
+
+func (s *Silkworm) AddStateSnapshotBundleHistorical(bundle StateSnapshotBundleHistorical) error {
+	cBundle := C.struct_SilkwormStateSnapshotBundleHistorical{
+		makeHistorySnapshot(bundle.Accounts),
+		makeHistorySnapshot(bundle.Storage),
+		makeHistorySnapshot(bundle.Code),
+		makeHistorySnapshot(bundle.Receipts),
+
+		makeInvertedIndexSnapshot(bundle.LogAddresses),
+		makeInvertedIndexSnapshot(bundle.LogTopics),
+		makeInvertedIndexSnapshot(bundle.TracesFrom),
+		makeInvertedIndexSnapshot(bundle.TracesTo),
+	}
+
+	status := C.silkworm_add_state_snapshot_bundle_historical(s.handle, &cBundle) //nolint:gocritic
+	if status == SILKWORM_OK {
+		return nil
+	}
+	return fmt.Errorf("silkworm_add_state_snapshot_bundle_historical error %d", status)
 }
 
 func (s *Silkworm) LibMdbxVersion() string {
@@ -303,8 +329,8 @@ func (s *Silkworm) StopRpcDaemon() error {
 
 func (s *Silkworm) makeForkValidatorSettings(settings ForkValidatorSettings) *C.struct_SilkwormForkValidatorSettings {
 	return &C.struct_SilkwormForkValidatorSettings{
-		batch_size:                 C.uint64_t(settings.BatchSize),
-		etl_buffer_size:            C.uint64_t(settings.EtlBufferSize),
+		batch_size:                 C.size_t(settings.BatchSize),
+		etl_buffer_size:            C.size_t(settings.EtlBufferSize),
 		sync_loop_throttle_seconds: C.uint32_t(settings.SyncLoopThrottleSeconds),
 		stop_before_senders_stage:  C.bool(settings.StopBeforeSendersStage),
 	}
