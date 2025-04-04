@@ -607,3 +607,37 @@ func (s *Silkworm) ExecuteTxn(txCHandle unsafe.Pointer, blockNum uint64, blockHe
 
 	return gasUsed, blobGasUsed, fmt.Errorf("silkworm_execute_tx error %d", status)
 }
+
+func (s *Silkworm) BlockExecStart(
+	txCHandle unsafe.Pointer,
+	blockNum uint64,
+	blockHeaderHash Hash,
+) error {
+	cTx := (*C.MDBX_txn)(txCHandle)
+	cBlockNum := C.uint64_t(blockNum)
+	cBlockHeaderHash := C.CBytes(blockHeaderHash[:])
+
+	status := C.silkworm_block_exec_start(s.handle, cTx, cBlockNum, *(*C.struct_SilkwormBytes32)(cBlockHeaderHash))
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_block_exec_end error %d", status)
+}
+
+func (s *Silkworm) BlockExecEnd(
+	txCHandle unsafe.Pointer,
+	memDbTxHandle unsafe.Pointer,
+) error {
+	cTx := (*C.MDBX_txn)(txCHandle)
+	memDbTx := (*C.MDBX_txn)(memDbTxHandle)
+
+	status := C.silkworm_block_exec_end(s.handle, cTx, memDbTx)
+
+	if status == SILKWORM_OK {
+		return nil
+	}
+
+	return fmt.Errorf("silkworm_block_exec_end error %d", status)
+}
