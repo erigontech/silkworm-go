@@ -170,3 +170,18 @@ func (s *Silkworm) ExecuteTxn(
 ) (gasUsed uint64, blobGasUsed uint64, err error) {
 	return 0, 0, nil
 }
+
+func (s *Silkworm) BlockExecStart(
+	txCHandle unsafe.Pointer,
+	blockNum uint64,
+	blockHeaderHash Hash,
+) error {
+	return nil
+}
+
+func (s *Silkworm) BlockExecEnd(
+	txCHandle unsafe.Pointer,
+	memDbTxHandle unsafe.Pointer,
+) error {
+	return nil
+}
