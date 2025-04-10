@@ -172,7 +172,7 @@ function finalize {
 		return
 	fi
 
-	cp "$project_dir/silkworm/capi/silkworm.h" include/
+	cp -R "$product_dir/include" include
 	git add include
 	git commit -m 'include'
 	git push
